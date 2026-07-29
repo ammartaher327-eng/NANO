@@ -1,6 +1,6 @@
-# NANO v0.1 — Local AI Assistant Prototype
+# NANO — Local AI Assistant Prototype
 
-> A minimal, hardware-aware local LLM assistant built for consumer GPUs (4GB VRAM target). This is the **prototype** — the first working iteration of a personal AI that runs entirely on your machine.
+> A minimal, hardware-aware local LLM assistant built for consumer GPUs (4GB VRAM target). This is the **prototype** — the first working iterations of a personal AI that runs entirely on your machine.
 
 ---
 
@@ -26,29 +26,32 @@ Build a capable local AI assistant that:
 
 ---
 
-## 📦 Current State (v0.1 Prototype)
+## 📦 Version Comparison
 
-This repository contains the **very first working prototype** — a single-file Python script using Hugging Face Transformers + PyTorch to run **Phi-4-mini-instruct (3.8B)** on CUDA.
+| Feature | v0.1 (`Nano v0.1.py`) | v0.2 (`Nano v0.2.py`) |
+|---------|----------------------|----------------------|
+| **Model** | Phi-4-mini-instruct (3.8B) | Phi-4-mini-instruct (3.8B) |
+| **Chat Template** | ❌ Raw tokenization | ✅ `apply_chat_template` |
+| **Conversation Loop** | ❌ Single-turn | ✅ `while True` with exit |
+| **History / Memory** | ❌ None | ✅ Rolling window (6 turns) |
+| **Generation Prompt** | ❌ Model autocompletes | ✅ `add_generation_prompt=True` |
+| **Interrupt Handling** | ❌ None | ✅ `KeyboardInterrupt` catch |
+| **GPU** | ✅ CUDA | ✅ CUDA |
 
-```bash
-# File: Nano v0.1.py
-# - Loads Phi-4-mini-instruct from Hugging Face
-# - Moves model to CUDA (GPU)
-# - Single-turn chat loop via `input()`
-```
+### v0.1 — Single-Turn Prototype
+- Loads model + tokenizer, moves to CUDA
+- Single `input()` → single `generate()` → single response
+- **Problem:** Without chat template, model treats prompt as completion task (autocompletes instead of answering)
 
-### ⚠️ Known Limitations (v0.1)
-
-| Issue | Impact | Planned Fix |
-|-------|--------|-------------|
-| **VRAM OOM risk** | Phi-4-mini at FP16 needs ~7-8GB VRAM; 4GB will OOM | Switch to **llama.cpp/GGUF with 4-bit quantization + GPU offload (`-ngl`)** |
-| Single-turn only | No conversation history/memory | Add chat template + history management |
-| No streaming | Full response waits for generation | Add token streaming for perceived speed |
-| Hardcoded model | Not configurable | CLI args / config file for model selection |
+### v0.2 — Chat Template + Conversation Loop
+- Uses `tokenizer.apply_chat_template(history, add_generation_prompt=True)` — fixes autocompletion
+- Multi-turn conversation with rolling history window (`max=6` turns → 12 messages)
+- Clean exit via `exit`/`stop` or `Ctrl+C`
+- Proper chat formatting for Phi-4-mini-instruct's expected template
 
 ---
 
-## 🚀 Quick Start (Current Prototype)
+## 🚀 Quick Start
 
 > **Requires:** Python 3.10+, PyTorch with CUDA, `transformers`, `accelerate`
 
@@ -61,37 +64,56 @@ cd NANO
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 pip install transformers accelerate
 
-# Run (will download ~7GB model on first run)
+# Run v0.1 (single-turn)
 python "Nano v0.1.py"
+
+# Run v0.2 (multi-turn with history)
+python "Nano v0.2.py"
 ```
 
 ---
 
 ## 🗺️ Roadmap
 
-### v0.2 — GGUF + llama.cpp (GPU Offload)
-- [ ] Convert to llama.cpp Python bindings / CLI
-- [ ] Use 4-bit GGUF models (Q4_K_M, Q5_K_M)
-- [ ] GPU layer offloading (`-ngl 20-30` for RTX 3050 4GB)
-- [ ] Support larger models (7B, 8B, 14B) via offload
+### v0.1 — ✅ Done: Foundation
+- [x] Load model + tokenizer (Phi-4-mini-instruct)
+- [x] Single prompt → single response
+- [x] GPU-accelerated (CUDA)
 
-### v0.3 — Chat UX
-- [ ] Multi-turn conversation with history
-- [ ] Streaming token output
-- [ ] System prompt / persona config
-- [ ] Simple CLI flags (`--model`, `--ngl`, `--temp`)
+### v0.2 — ✅ Done: Chat UX
+- [x] Chat templates (`apply_chat_template`) — fixes autocompletion
+- [x] Basic conversation loop (`while True`)
+- [x] Rolling conversation history
 
-### v0.4 — Assistant Features
-- [ ] Tool calling / function calling (local tools)
-- [ ] RAG / local document QA
-- [ ] Persistent memory / long-term context
-- [ ] Voice I/O (Whisper + TTS)
+### v0.3 — 🔄 Next: Memory
+- [ ] Conversation history as a real concept (persistent, inspectable)
+- [ ] Context as a real concept (summarization, truncation strategies)
+- [ ] Session save/load
 
-### v1.0 — Polished Local Assistant
-- [ ] Clean CLI / TUI
-- [ ] Config file (YAML/TOML)
-- [ ] Model auto-download / management
-- [ ] Cross-platform (Linux/Windows/macOS)
+### v0.4 — 🔜 First Capability: Tools
+- [ ] Keyword-based routing (detect intent → route to tool)
+- [ ] SymPy math tool with validation + fallback
+- [ ] Tool result injection back into context
+
+### v0.5 — ⚡ Speed: Quantization & Offloading
+- [ ] 4-bit quantization (bitsandbytes / GGUF)
+- [ ] CPU + GPU offloading exploration (llama.cpp `-ngl`)
+- [ ] Benchmark tokens/sec vs quality trade-offs
+
+### v0.6 — 🛠️ More Tools
+- [ ] Pandas data handling tool (CSV/Excel analysis)
+- [ ] Basic search tool (local web search / duckduckgo)
+- [ ] Tool registry / plugin system
+
+### v1.0 — ✨ Polish: Production CLI
+- [ ] Clean CLI / TUI (argparse/click + rich)
+- [ ] Config file (YAML/TOML) — model, ngl, temp, system prompt
+- [ ] Phone / web access (Termux, simple web UI)
+
+### v1.0+ — 🚀 Stretch Goals
+- [ ] Fine-tuning with Unsloth / QLoRA
+- [ ] Attention visualization (hooks + matplotlib)
+- [ ] Custom skill format inspired by Hermes Agent
 
 ---
 
