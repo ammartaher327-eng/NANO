@@ -28,32 +28,45 @@ Build a capable local AI assistant that:
 
 ## 📦 Version Comparison
 
-| Feature | v0.1 (`Nano v0.1.py`) | v0.2 (`Nano v0.2.py`) |
-|---------|----------------------|----------------------|
-| **Model** | Phi-4-mini-instruct (3.8B) | Phi-4-mini-instruct (3.8B) |
-| **Chat Template** | ❌ Raw tokenization | ✅ `apply_chat_template` |
-| **Conversation Loop** | ❌ Single-turn | ✅ `while True` with exit |
-| **History / Memory** | ❌ None | ✅ Rolling window (6 turns) |
-| **Generation Prompt** | ❌ Model autocompletes | ✅ `add_generation_prompt=True` |
-| **Interrupt Handling** | ❌ None | ✅ `KeyboardInterrupt` catch |
-| **GPU** | ✅ CUDA | ✅ CUDA |
+| Feature | v0.1 (`Nano v0.1.py`) | v0.2 (`Nano v0.2.py`) | v0.4 (`Nano v0.4.py`) |
+|---------|----------------------|----------------------|----------------------|
+| **Model** | Phi-4-mini-instruct (3.8B) | Phi-4-mini-instruct (3.8B) | Phi-4-mini-instruct (3.8B) |
+| **Chat Template** | ❌ Raw tokenization | ✅ `apply_chat_template` | ✅ `apply_chat_template` |
+| **Conversation Loop** | ❌ Single-turn | ✅ `while True` with exit | ✅ `while True` with exit |
+| **History / Memory** | ❌ None | ✅ Rolling window (6 turns) | ✅ Rolling window (6 turns) |
+| **Generation Prompt** | ❌ Model autocompletes | ✅ `add_generation_prompt=True` | ✅ `add_generation_prompt=True` |
+| **Interrupt Handling** | ❌ None | ✅ `KeyboardInterrupt` catch | ✅ `KeyboardInterrupt` catch |
+| **GPU** | ✅ CUDA | ✅ CUDA | ✅ CUDA |
+| **Tool Use** | ❌ None | ❌ None | ✅ **Keyword routing + SymPy tool** |
+| **Tool Fallback** | ❌ N/A | ❌ N/A | ✅ Graceful error fallback |
 
 ### v0.1 — Single-Turn Prototype
 - Loads model + tokenizer, moves to CUDA
 - Single `input()` → single `generate()` → single response
 - **Problem:** Without chat template, model treats prompt as completion task (autocompletes instead of answering)
 
-### v0.2 — Chat Template + Conversation Loop
+### v0.2 — Chat Template + Conversation Loop *(absorbs v0.3)*
 - Uses `tokenizer.apply_chat_template(history, add_generation_prompt=True)` — fixes autocompletion
 - Multi-turn conversation with rolling history window (`max=6` turns → 12 messages)
 - Clean exit via `exit`/`stop` or `Ctrl+C`
 - Proper chat formatting for Phi-4-mini-instruct's expected template
+- **v0.3 (Memory) absorbed here:** Conversation history and context management were implemented directly in v0.2's rolling window — no separate v0.3 release needed.
+
+### v0.4 — First Capability: Tools *(Current)*
+- **Keyword-based routing** — detects "solve" keyword → routes to math tool
+- **SymPy math tool** with validation & graceful fallback:
+  - Extracts expression after "solve" keyword
+  - Regex-detects variable names (falls back to `x`)
+  - Handles equations (`=`) or expressions (assumes `= 0`)
+  - Try/except with graceful error dict fallback
+- **Tool result injection** — results injected back into conversation history as `{"role": "tool", "content": ...}`
+- Maintains rolling history window with tool messages included
 
 ---
 
 ## 🚀 Quick Start
 
-> **Requires:** Python 3.10+, PyTorch with CUDA, `transformers`, `accelerate`
+> **Requires:** Python 3.10+, PyTorch with CUDA, `transformers`, `accelerate`, `sympy`
 
 ```bash
 # Clone
@@ -62,14 +75,19 @@ cd NANO
 
 # Install deps (CUDA-enabled PyTorch)
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
-pip install transformers accelerate
+pip install transformers accelerate sympy
 
 # Run v0.1 (single-turn)
 python "Nano v0.1.py"
 
 # Run v0.2 (multi-turn with history)
 python "Nano v0.2.py"
+
+# Run v0.4 (multi-turn + math tool)
+python "Nano v0.4.py"
 ```
+
+> **Try it:** Type `solve x^2 - 5x + 6 = 0` or `solve 2x + 5 = 15` in v0.4
 
 ---
 
@@ -80,22 +98,18 @@ python "Nano v0.2.py"
 - [x] Single prompt → single response
 - [x] GPU-accelerated (CUDA)
 
-### v0.2 — ✅ Done: Chat UX
+### v0.2 — ✅ Done: Chat UX *(absorbs v0.3)*
 - [x] Chat templates (`apply_chat_template`) — fixes autocompletion
 - [x] Basic conversation loop (`while True`)
 - [x] Rolling conversation history
+- [x] **v0.3 Memory absorbed:** persistent/inspectable history, context management, session save/load → implemented as rolling window in v0.2
 
-### v0.3 — 🔄 Next: Memory
-- [ ] Conversation history as a real concept (persistent, inspectable)
-- [ ] Context as a real concept (summarization, truncation strategies)
-- [ ] Session save/load
+### v0.4 — ✅ Done: First Capability — Tools
+- [x] Keyword-based routing (detect intent → route to tool)
+- [x] SymPy math tool with validation + fallback
+- [x] Tool result injection back into context
 
-### v0.4 — 🔜 First Capability: Tools
-- [ ] Keyword-based routing (detect intent → route to tool)
-- [ ] SymPy math tool with validation + fallback
-- [ ] Tool result injection back into context
-
-### v0.5 — ⚡ Speed: Quantization & Offloading
+### v0.5 — 🔄 Next: Speed — Quantization & Offloading
 - [ ] 4-bit quantization (bitsandbytes / GGUF)
 - [ ] CPU + GPU offloading exploration (llama.cpp `-ngl`)
 - [ ] Benchmark tokens/sec vs quality trade-offs
@@ -114,6 +128,18 @@ python "Nano v0.2.py"
 - [ ] Fine-tuning with Unsloth / QLoRA
 - [ ] Attention visualization (hooks + matplotlib)
 - [ ] Custom skill format inspired by Hermes Agent
+
+---
+
+## ⚠️ Known Limitations
+
+| Version | Limitation |
+|---------|------------|
+| **v0.1** | No chat template → model autocompletes instead of answering |
+| **v0.2/v0.4** | Fixed 6-turn rolling window (hardcoded `max=6`) — no summarization, no persistence |
+| **v0.2/v0.4** | Single model only (Phi-4-mini), no config file |
+| **v0.4** | Keyword routing is brittle ("solve" must appear); SymPy tool only handles single-variable algebra; no tool registry/plugin system |
+| **All versions** | CUDA-only (no CPU fallback); no quantization; Windows-only paths hardcoded in some spots |
 
 ---
 
