@@ -28,17 +28,20 @@ Build a capable local AI assistant that:
 
 ## 📦 Version Comparison
 
-| Feature | v0.1 (`Nano v0.1.py`) | v0.2 (`Nano v0.2.py`) | v0.4 (`Nano v0.4.py`) |
-|---------|----------------------|----------------------|----------------------|
-| **Model** | Phi-4-mini-instruct (3.8B) | Phi-4-mini-instruct (3.8B) | Phi-4-mini-instruct (3.8B) |
-| **Chat Template** | ❌ Raw tokenization | ✅ `apply_chat_template` | ✅ `apply_chat_template` |
-| **Conversation Loop** | ❌ Single-turn | ✅ `while True` with exit | ✅ `while True` with exit |
-| **History / Memory** | ❌ None | ✅ Rolling window (6 turns) | ✅ Rolling window (6 turns) |
-| **Generation Prompt** | ❌ Model autocompletes | ✅ `add_generation_prompt=True` | ✅ `add_generation_prompt=True` |
-| **Interrupt Handling** | ❌ None | ✅ `KeyboardInterrupt` catch | ✅ `KeyboardInterrupt` catch |
-| **GPU** | ✅ CUDA | ✅ CUDA | ✅ CUDA |
-| **Tool Use** | ❌ None | ❌ None | ✅ **Keyword routing + SymPy tool** |
-| **Tool Fallback** | ❌ N/A | ❌ N/A | ✅ Graceful error fallback |
+| Feature | v0.1 (`Nano v0.1.py`) | v0.2 (`Nano v0.2.py`) | v0.4 (`Nano v0.4.py`) | **v0.5 (`Nano v0.5.py`)** |
+|---------|----------------------|----------------------|----------------------|---------------------------|
+| **Model** | Phi-4-mini-instruct (3.8B) | Phi-4-mini-instruct (3.8B) | Phi-4-mini-instruct (3.8B) | **Phi-4-mini-instruct (3.8B) @ 4-bit** |
+| **Quantization** | ❌ FP16 | ❌ FP16 | ❌ FP16 | ✅ **NF4 4-bit (bitsandbytes)** |
+| **VRAM Usage** | ~7.6 GB | ~7.6 GB | ~7.6 GB | **~2.5 GB** |
+| **Chat Template** | ❌ Raw tokenization | ✅ `apply_chat_template` | ✅ `apply_chat_template` | ✅ `apply_chat_template` |
+| **Conversation Loop** | ❌ Single-turn | ✅ `while True` with exit | ✅ `while True` with exit | ✅ `while True` with exit |
+| **History / Memory** | ❌ None | ✅ Rolling window (6 turns) | ✅ Rolling window (6 turns) | ✅ Rolling window (6 turns) |
+| **Generation Prompt** | ❌ Model autocompletes | ✅ `add_generation_prompt=True` | ✅ `add_generation_prompt=True` | ✅ `add_generation_prompt=True` |
+| **Interrupt Handling** | ❌ None | ✅ `KeyboardInterrupt` catch | ✅ `KeyboardInterrupt` catch | ✅ `KeyboardInterrupt` catch |
+| **GPU** | ✅ CUDA | ✅ CUDA | ✅ CUDA | ✅ CUDA (quantized) |
+| **System Prompt** | ❌ Hardcoded | ❌ Hardcoded | ❌ Hardcoded | ✅ **Dynamic (concise/standard)** |
+| **Tool Use** | ❌ None | ❌ None | ✅ Keyword routing + SymPy | ✅ Keyword routing + SymPy |
+| **Tool Fallback** | ❌ N/A | ❌ N/A | ✅ Graceful error fallback | ✅ Graceful error fallback |
 
 ### v0.1 — Single-Turn Prototype
 - Loads model + tokenizer, moves to CUDA
@@ -52,7 +55,7 @@ Build a capable local AI assistant that:
 - Proper chat formatting for Phi-4-mini-instruct's expected template
 - **v0.3 (Memory) absorbed here:** Conversation history and context management were implemented directly in v0.2's rolling window — no separate v0.3 release needed.
 
-### v0.4 — First Capability: Tools *(Current)*
+### v0.4 — First Capability: Tools
 - **Keyword-based routing** — detects "solve" keyword → routes to math tool
 - **SymPy math tool** with validation & graceful fallback:
   - Extracts expression after "solve" keyword
@@ -62,11 +65,17 @@ Build a capable local AI assistant that:
 - **Tool result injection** — results injected back into conversation history as `{"role": "tool", "content": ...}`
 - Maintains rolling history window with tool messages included
 
+### v0.5 — Speed: 4-bit Quantization & Dynamic System Prompts *(Current)*
+- **4-bit quantization** via `BitsAndBytesConfig` (NF4, double quant, fp16 compute) — **~67% VRAM reduction**
+- **Dynamic system prompt switching** — "just give me the answer" toggles concise mode; default is precise/scientific
+- Maintains all v0.4 capabilities (chat template, history, math tool, interrupt handling)
+- Phi-4-mini-instruct at 4-bit fits comfortably in 4GB VRAM with headroom for KV-cache
+
 ---
 
 ## 🚀 Quick Start
 
-> **Requires:** Python 3.10+, PyTorch with CUDA, `transformers`, `accelerate`, `sympy`
+> **Requires:** Python 3.10+, PyTorch with CUDA, `transformers`, `accelerate`, `sympy`, `bitsandbytes`
 
 ```bash
 # Clone
@@ -75,7 +84,7 @@ cd NANO
 
 # Install deps (CUDA-enabled PyTorch)
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
-pip install transformers accelerate sympy
+pip install transformers accelerate sympy bitsandbytes
 
 # Run v0.1 (single-turn)
 python "Nano v0.1.py"
@@ -85,9 +94,13 @@ python "Nano v0.2.py"
 
 # Run v0.4 (multi-turn + math tool)
 python "Nano v0.4.py"
+
+# Run v0.5 (4-bit quantized + dynamic prompts + math tool)
+python "Nano v0.5.py"
 ```
 
-> **Try it:** Type `solve x^2 - 5x + 6 = 0` or `solve 2x + 5 = 15` in v0.4
+> **Try it:** Type `solve x^2 - 5x + 6 = 0` or `solve 2x + 5 = 15` in v0.4/v0.5  
+> **Try v0.5:** Type `just give me the answer` then ask anything for concise mode
 
 ---
 
@@ -109,8 +122,9 @@ python "Nano v0.4.py"
 - [x] SymPy math tool with validation + fallback
 - [x] Tool result injection back into context
 
-### v0.5 — 🔄 Next: Speed — Quantization & Offloading
-- [ ] 4-bit quantization (bitsandbytes / GGUF)
+### v0.5 — ✅ Done: Speed — Quantization & Offloading
+- [x] 4-bit quantization (bitsandbytes NF4)
+- [x] Dynamic system prompts (concise/standard modes)
 - [ ] CPU + GPU offloading exploration (llama.cpp `-ngl`)
 - [ ] Benchmark tokens/sec vs quality trade-offs
 
@@ -136,10 +150,11 @@ python "Nano v0.4.py"
 | Version | Limitation |
 |---------|------------|
 | **v0.1** | No chat template → model autocompletes instead of answering |
-| **v0.2/v0.4** | Fixed 6-turn rolling window (hardcoded `max=6`) — no summarization, no persistence |
-| **v0.2/v0.4** | Single model only (Phi-4-mini), no config file |
-| **v0.4** | Keyword routing is brittle ("solve" must appear); SymPy tool only handles single-variable algebra; no tool registry/plugin system |
-| **All versions** | CUDA-only (no CPU fallback); no quantization; Windows-only paths hardcoded in some spots |
+| **v0.2/v0.4/v0.5** | Fixed 6-turn rolling window (hardcoded `max=6`) — no summarization, no persistence |
+| **v0.2/v0.4/v0.5** | Single model only (Phi-4-mini), no config file |
+| **v0.4/v0.5** | Keyword routing is brittle ("solve" must appear); SymPy tool only handles single-variable algebra; no tool registry/plugin system |
+| **All versions** | CUDA-only (no CPU fallback); no quantization in v0.1-v0.4; Windows-only paths hardcoded in some spots |
+| **v0.5** | `bitsandbytes` on Windows requires `bitsandbytes-windows` wheel; no explicit layer offloading (`-ngl` equivalent) |
 
 ---
 
