@@ -28,20 +28,21 @@ Build a capable local AI assistant that:
 
 ## 📦 Version Comparison
 
-| Feature | v0.1 (`Nano v0.1.py`) | v0.2 (`Nano v0.2.py`) | v0.4 (`Nano v0.4.py`) | **v0.5 (`Nano v0.5.py`)** |
-|---------|----------------------|----------------------|----------------------|---------------------------|
-| **Model** | Phi-4-mini-instruct (3.8B) | Phi-4-mini-instruct (3.8B) | Phi-4-mini-instruct (3.8B) | **Phi-4-mini-instruct (3.8B) @ 4-bit** |
-| **Quantization** | ❌ FP16 | ❌ FP16 | ❌ FP16 | ✅ **NF4 4-bit (bitsandbytes)** |
-| **VRAM Usage** | ~7.6 GB | ~7.6 GB | ~7.6 GB | **~2.5 GB** |
-| **Chat Template** | ❌ Raw tokenization | ✅ `apply_chat_template` | ✅ `apply_chat_template` | ✅ `apply_chat_template` |
-| **Conversation Loop** | ❌ Single-turn | ✅ `while True` with exit | ✅ `while True` with exit | ✅ `while True` with exit |
-| **History / Memory** | ❌ None | ✅ Rolling window (6 turns) | ✅ Rolling window (6 turns) | ✅ Rolling window (6 turns) |
-| **Generation Prompt** | ❌ Model autocompletes | ✅ `add_generation_prompt=True` | ✅ `add_generation_prompt=True` | ✅ `add_generation_prompt=True` |
-| **Interrupt Handling** | ❌ None | ✅ `KeyboardInterrupt` catch | ✅ `KeyboardInterrupt` catch | ✅ `KeyboardInterrupt` catch |
-| **GPU** | ✅ CUDA | ✅ CUDA | ✅ CUDA | ✅ CUDA (quantized) |
-| **System Prompt** | ❌ Hardcoded | ❌ Hardcoded | ❌ Hardcoded | ✅ **Dynamic (concise/standard)** |
-| **Tool Use** | ❌ None | ❌ None | ✅ Keyword routing + SymPy | ✅ Keyword routing + SymPy |
-| **Tool Fallback** | ❌ N/A | ❌ N/A | ✅ Graceful error fallback | ✅ Graceful error fallback |
+| Feature | v0.1 (`Nano v0.1.py`) | v0.2 (`Nano v0.2.py`) | v0.4 (`Nano v0.4.py`) | v0.5 (`Nano v0.5.py`) | **v0.6 (`Nano v0.6.py`)** |
+|---------|----------------------|----------------------|----------------------|---------------------------|---------------------------|
+| **Model** | Phi-4-mini-instruct (3.8B) | Phi-4-mini-instruct (3.8B) | Phi-4-mini-instruct (3.8B) | **Phi-4-mini-instruct (3.8B) @ 4-bit** | **Phi-4-mini-instruct (3.8B) @ 4-bit** |
+| **Quantization** | ❌ FP16 | ❌ FP16 | ❌ FP16 | ✅ **NF4 4-bit (bitsandbytes)** | ✅ **NF4 4-bit (bitsandbytes)** |
+| **VRAM Usage** | ~7.6 GB | ~7.6 GB | ~7.6 GB | **~2.5 GB** | **~2.5 GB** |
+| **Chat Template** | ❌ Raw tokenization | ✅ `apply_chat_template` | ✅ `apply_chat_template` | ✅ `apply_chat_template` | ✅ `apply_chat_template` |
+| **Conversation Loop** | ❌ Single-turn | ✅ `while True` with exit | ✅ `while True` with exit | ✅ `while True` with exit | ✅ `while True` with exit |
+| **History / Memory** | ❌ None | ✅ Rolling window (6 turns) | ✅ Rolling window (6 turns) | ✅ Rolling window (6 turns) | ✅ Rolling window (6 turns) |
+| **Generation Prompt** | ❌ Model autocompletes | ✅ `add_generation_prompt=True` | ✅ `add_generation_prompt=True` | ✅ `add_generation_prompt=True` | ✅ `add_generation_prompt=True` |
+| **Interrupt Handling** | ❌ None | ✅ `KeyboardInterrupt` catch | ✅ `KeyboardInterrupt` catch | ✅ `KeyboardInterrupt` catch | ✅ `KeyboardInterrupt` catch |
+| **GPU** | ✅ CUDA | ✅ CUDA | ✅ CUDA | ✅ CUDA (quantized) | ✅ CUDA (quantized) |
+| **System Prompt** | ❌ Hardcoded | ❌ Hardcoded | ❌ Hardcoded | ✅ **Dynamic (concise/standard)** | ✅ **Dynamic (concise/standard)** |
+| **Tool Use** | ❌ None | ❌ None | ✅ Keyword routing + SymPy | ✅ Keyword routing + SymPy | ✅ Keyword routing + SymPy |
+| **Tool Fallback** | ❌ N/A | ❌ N/A | ✅ Graceful error fallback | ✅ Graceful error fallback | ✅ Graceful error fallback |
+| **Code Quality** | Prototype | Prototype | Prototype | Prototype | **Refactored + modular tool dispatch** |
 
 ### v0.1 — Single-Turn Prototype
 - Loads model + tokenizer, moves to CUDA
@@ -65,11 +66,19 @@ Build a capable local AI assistant that:
 - **Tool result injection** — results injected back into conversation history as `{"role": "tool", "content": ...}`
 - Maintains rolling history window with tool messages included
 
-### v0.5 — Speed: 4-bit Quantization & Dynamic System Prompts *(Current)*
+### v0.5 — Speed: 4-bit Quantization & Dynamic System Prompts
 - **4-bit quantization** via `BitsAndBytesConfig` (NF4, double quant, fp16 compute) — **~67% VRAM reduction**
 - **Dynamic system prompt switching** — "just give me the answer" toggles concise mode; default is precise/scientific
 - Maintains all v0.4 capabilities (chat template, history, math tool, interrupt handling)
 - Phi-4-mini-instruct at 4-bit fits comfortably in 4GB VRAM with headroom for KV-cache
+
+### v0.6 — Refactored Tool Dispatch + Cleaner Architecture *(Current)*
+- **Modular tool dispatcher** — extracted math solver into `MathTool` class with `can_handle()` / `execute()` pattern
+- **Cleaner keyword routing** — dedicated `route_tool()` function, easier to extend for new tools
+- **Structured tool results** — consistent `{"status": "ok|error", "result": ..., "tool": "..."}` format
+- **Removed duplicate logic** — single source of truth for system prompts, history trimming
+- **Ready for v0.7 tool registry** — architecture supports plug-and-play tool additions
+- Maintains all v0.5 capabilities (4-bit NF4, dynamic prompts, math tool, interrupt handling)
 
 ---
 
@@ -97,10 +106,13 @@ python "Nano v0.4.py"
 
 # Run v0.5 (4-bit quantized + dynamic prompts + math tool)
 python "Nano v0.5.py"
+
+# Run v0.6 (refactored tool dispatch + cleaner architecture + 4-bit)
+python "Nano v0.6.py"
 ```
 
-> **Try it:** Type `solve x^2 - 5x + 6 = 0` or `solve 2x + 5 = 15` in v0.4/v0.5  
-> **Try v0.5:** Type `just give me the answer` then ask anything for concise mode
+> **Try it:** Type `solve x^2 - 5x + 6 = 0` or `solve 2x + 5 = 15` in v0.4/v0.5/v0.6  
+> **Try v0.5/v0.6:** Type `just give me the answer` then ask anything for concise mode
 
 ---
 
@@ -128,10 +140,19 @@ python "Nano v0.5.py"
 - [ ] CPU + GPU offloading exploration (llama.cpp `-ngl`)
 - [ ] Benchmark tokens/sec vs quality trade-offs
 
-### v0.6 — 🛠️ More Tools
-- [ ] Pandas data handling tool (CSV/Excel analysis)
-- [ ] Basic search tool (local web search / duckduckgo)
-- [ ] Tool registry / plugin system
+### v0.6 — ✅ Done: Refactored Tool Dispatch
+- [x] Modular tool dispatcher pattern (`can_handle` / `execute`)
+- [x] Cleaner keyword routing function
+- [x] Structured tool result format
+- [x] Architecture ready for tool registry / plugin system
+
+### v0.7 — 🛠️ More Tools: Data Analysis
+- [ ] Pandas data handling tool (CSV/Excel load, stats, filtering, groupby)
+- [ ] Tool registry / plugin system (auto-discovery, `@tool` decorator)
+
+### v0.8 — 🌐 More Tools: Search
+- [ ] Basic search tool (DuckDuckGo / web search via API)
+- [ ] Local file search (ripgrep / grep wrapper)
 
 ### v1.0 — ✨ Polish: Production CLI
 - [ ] Clean CLI / TUI (argparse/click + rich)
@@ -150,11 +171,11 @@ python "Nano v0.5.py"
 | Version | Limitation |
 |---------|------------|
 | **v0.1** | No chat template → model autocompletes instead of answering |
-| **v0.2/v0.4/v0.5** | Fixed 6-turn rolling window (hardcoded `max=6`) — no summarization, no persistence |
-| **v0.2/v0.4/v0.5** | Single model only (Phi-4-mini), no config file |
-| **v0.4/v0.5** | Keyword routing is brittle ("solve" must appear); SymPy tool only handles single-variable algebra; no tool registry/plugin system |
+| **v0.2/v0.4/v0.5/v0.6** | Fixed 6-turn rolling window (hardcoded `max=6`) — no summarization, no persistence |
+| **v0.2/v0.4/v0.5/v0.6** | Single model only (Phi-4-mini), no config file |
+| **v0.4/v0.5/v0.6** | Keyword routing is brittle ("solve" must appear); SymPy tool only handles single-variable algebra; no tool registry/plugin system (v0.6 architecture ready for it) |
 | **All versions** | CUDA-only (no CPU fallback); no quantization in v0.1-v0.4; Windows-only paths hardcoded in some spots |
-| **v0.5** | `bitsandbytes` on Windows requires `bitsandbytes-windows` wheel; no explicit layer offloading (`-ngl` equivalent) |
+| **v0.5/v0.6** | `bitsandbytes` on Windows requires `bitsandbytes-windows` wheel; no explicit layer offloading (`-ngl` equivalent) |
 
 ---
 
